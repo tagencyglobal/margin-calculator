@@ -131,6 +131,12 @@ h2 { font-size: 1.0625rem; font-weight: 700; letter-spacing: -.025em; }
 .remove-item { display: grid; place-items: center; flex: 0 0 44px; width: 44px; border: 0; background: transparent; color: var(--muted); border-radius: 9px; }
 .remove-item:hover { background: var(--remove-hover); color: var(--red); }
 .remove-item svg { width: 18px; height: 18px; }
+.collapse-item { display: grid; place-items: center; flex: 0 0 44px; width: 44px; border: 0; background: transparent; color: var(--muted); border-radius: 9px; }
+.collapse-item:hover { background: var(--result-bg); color: var(--accent); }
+.collapse-item svg { width: 18px; height: 18px; transition: transform .2s; }
+.collapse-item[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.item-card[data-collapsed="true"] .item-top { padding-bottom: 9px; }
+.item-card[data-collapsed="true"] .item-result { cursor: pointer; }
 
 .item-fields { padding: 0 24px 24px; }
 .price-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -188,6 +194,10 @@ h2 { font-size: 1.0625rem; font-weight: 700; letter-spacing: -.025em; }
 .add-button { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; min-height: 56px; color: var(--accent); background: transparent; border: 1px dashed var(--add-line); border-radius: 12px; font-size: .9375rem; font-weight: 600; }
 .add-button:hover:not(:disabled) { background: var(--add-hover); border-color: var(--accent); }
 .add-button span { font-size: 1.375rem; font-weight: 400; }
+.list-actions { display: flex; gap: 10px; }
+.list-actions .add-button { flex: 1; }
+.collapse-all { flex-shrink: 0; padding: 0 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: .875rem; font-weight: 600; }
+.collapse-all:hover { color: var(--accent); border-color: var(--add-line); }
 .input-note { color: var(--muted); font-size: .8125rem; text-align: center; margin-top: 14px; }
 
 .summary-panel { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); margin-top: 44px; min-width: 0; }
@@ -346,7 +356,10 @@ details[open] .chevron { transform: rotate(225deg); }
           <p class="field-error" id="rate-error" hidden></p>
         </div>
         <div id="items"></div>
-        <button class="add-button" id="add-item" type="button"><span aria-hidden="true">＋</span> 상품 추가</button>
+        <div class="list-actions">
+          <button class="add-button" id="add-item" type="button"><span aria-hidden="true">＋</span> 상품 추가</button>
+          <button class="collapse-all" id="collapse-all" type="button" hidden>모두 접기</button>
+        </div>
         <p class="input-note">여러 상품을 추가하면 원가와 이익이 모두 합산됩니다.<br>입력 내용은 새로고침하거나 페이지를 닫으면 사라집니다.</p>
       </section>
 
@@ -504,6 +517,7 @@ details[open] .chevron { transform: rotate(225deg); }
 
   const itemsElement = document.getElementById('items');
   const addButton = document.getElementById('add-item');
+  const collapseAllButton = document.getElementById('collapse-all');
   const removeDialog = document.getElementById('remove-dialog');
   const rateInput = document.getElementById('gbp-rate');
   const items = [];
@@ -520,7 +534,7 @@ details[open] .chevron { transform: rotate(225deg); }
     return {
       id: nextId++, name: '', cost: '', sale: '',
       costCurrency: last?.costCurrency ?? 'KRW', saleCurrency: last?.saleCurrency ?? 'KRW',
-      fee: '', feeType: 'percent', feeInputs: { percent: '', won: '' }, quantity: '1',
+      fee: '', feeType: 'percent', feeInputs: { percent: '', won: '' }, quantity: '1', collapsed: false,
     };
   }
 
@@ -535,9 +549,10 @@ details[open] .chevron { transform: rotate(225deg); }
       <div class="item-top">
         <span class="item-index" aria-hidden="true">${String(n).padStart(2, '0')}</span>
         <input class="item-name" id="${prefix}-name" data-field="name" aria-label="상품 ${n} 이름" placeholder="상품 ${n}" maxlength="60" autocomplete="off">
+        <button type="button" class="collapse-item" aria-expanded="true" aria-controls="${prefix}-fields" aria-label="상품 ${n} 접기" title="접기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
         <button type="button" class="remove-item" aria-label="상품 ${n} 삭제" title="상품 삭제"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg></button>
       </div>
-      <div class="item-fields">
+      <div class="item-fields" id="${prefix}-fields">
         <div class="price-fields">${priceField(prefix, 'cost', '원가')}${priceField(prefix, 'sale', '판매가')}</div>
         <div class="fee-quantity-fields">
           <div>
@@ -585,6 +600,13 @@ details[open] .chevron { transform: rotate(225deg); }
     nameInput.placeholder = `상품 ${index + 1}`;
     nameInput.setAttribute('aria-label', `상품 ${index + 1} 이름`);
     card.querySelector('.remove-item').setAttribute('aria-label', `${label} 삭제`);
+    // 접으면 입력칸을 숨기고 상품 이름과 상품 이익만 남깁니다.
+    card.dataset.collapsed = String(item.collapsed);
+    card.querySelector('.item-fields').hidden = item.collapsed;
+    const collapseButton = card.querySelector('.collapse-item');
+    collapseButton.setAttribute('aria-expanded', String(!item.collapsed));
+    collapseButton.setAttribute('aria-label', `${label} ${item.collapsed ? '펴기' : '접기'}`);
+    collapseButton.title = item.collapsed ? '펴기' : '접기';
 
     for (const field of ['cost', 'sale', 'fee', 'quantity']) {
       const error = result.errors[field];
@@ -677,6 +699,8 @@ details[open] .chevron { transform: rotate(225deg); }
       status = `입력이 끝나지 않은 ${totals.excludedCount}개 상품은 합계에서 제외됩니다.`;
     }
     text('summary-status', status);
+    collapseAllButton.hidden = items.length < 2;
+    collapseAllButton.textContent = items.some(item => !item.collapsed) ? '모두 접기' : '모두 펴기';
     addButton.disabled = items.length >= MAX_ITEMS;
     addButton.title = addButton.disabled ? '상품은 최대 100개까지 추가할 수 있습니다.' : '';
 
@@ -723,6 +747,13 @@ details[open] .chevron { transform: rotate(225deg); }
     const card = event.target.closest('.item-card');
     if (!card) return;
     const item = itemOf(card);
+    // 접힌 카드는 상품 이익 줄을 눌러도 펼쳐집니다.
+    if (event.target.closest('.collapse-item') || (item.collapsed && event.target.closest('.item-result'))) {
+      item.collapsed = !item.collapsed;
+      update();
+      if (!item.collapsed) card.scrollIntoView({ block: 'nearest' });
+      return;
+    }
     const currencyButton = event.target.closest('[data-currency]');
     if (currencyButton) {
       item[`${currencyButton.dataset.currencyField}Currency`] = currencyButton.dataset.currency;
@@ -841,7 +872,17 @@ details[open] .chevron { transform: rotate(225deg); }
     if (event.key === 'Enter') { event.preventDefault(); rateInput.blur(); }
   });
 
-  addButton.addEventListener('click', () => addItem());
+  // 새 상품을 추가하면 입력이 끝난 상품은 자동으로 접어 화면을 비웁니다.
+  addButton.addEventListener('click', () => {
+    const results = calculateTotals(items, parseRate(rateInput.value)).results;
+    items.forEach((item, index) => { if (results[index].status === 'complete') item.collapsed = true; });
+    addItem();
+  });
+  collapseAllButton.addEventListener('click', () => {
+    const collapse = items.some(item => !item.collapsed);
+    items.forEach(item => { item.collapsed = collapse; });
+    update();
+  });
   document.getElementById('mobile-jump').addEventListener('click', () => {
     document.getElementById('summary-card').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   });
