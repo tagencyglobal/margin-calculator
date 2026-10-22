@@ -137,6 +137,8 @@ h2 { font-size: 1.0625rem; font-weight: 700; letter-spacing: -.025em; }
 .collapse-item[aria-expanded="false"] svg { transform: rotate(-90deg); }
 .item-card[data-collapsed="true"] .item-top { padding-bottom: 9px; }
 .item-card[data-collapsed="true"] .item-result { cursor: pointer; }
+.done-item { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 48px; margin-top: 20px; border: 0; border-radius: 10px; background: var(--brand); color: #ffffff; font-size: .9375rem; font-weight: 600; }
+.done-item:hover { filter: brightness(1.08); }
 
 .item-fields { padding: 0 24px 24px; }
 .price-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -503,7 +505,9 @@ details[open] .chevron { transform: rotate(225deg); }
       ...total,
       returnRate: total.cost > 0 ? total.profit / total.cost * 100 : null,
       completeCount: complete.length,
-      excludedCount: items.length - complete.length,
+      // 원가·판매가를 하나도 넣지 않은 빈 상품은 '제외된 상품'으로 세지 않습니다.
+      excludedCount: results.filter((result, index) => result.status !== 'complete'
+        && (String(items[index].cost).trim() !== '' || String(items[index].sale).trim() !== '')).length,
       results,
     };
   }
@@ -567,6 +571,7 @@ details[open] .chevron { transform: rotate(225deg); }
             <p class="field-error" id="${prefix}-quantity-error" hidden></p>
           </div>
         </div>
+        <button type="button" class="done-item" hidden><span aria-hidden="true">✓</span> 입력 완료</button>
       </div>
       <div class="item-result" data-state="empty"><span class="item-result-label">상품 이익 <span class="item-quantity-note"></span></span><div class="item-result-values"><strong class="item-profit">입력 대기</strong><span class="item-return" hidden>—</span></div></div>
     </article>`;
@@ -632,8 +637,8 @@ details[open] .chevron { transform: rotate(225deg); }
       hint.toggleAttribute('data-ready', ready);
       hint.textContent = !isGbp ? ''
         : ready ? `≈ ${money(toKrw(value, 'GBP', gbpRate))}원`
-        : gbpRate === null ? (rateState.kind === 'loading' ? '환율 불러오는 중…' : '환율을 넣으면 원화로 바꿔 보여드려요')
-        : '원화 환산액이 여기에 표시됩니다';
+        : gbpRate === null ? (rateState.kind === 'loading' ? '환율 불러오는 중…' : '환율을 넣어 주세요')
+        : '≈ — 원';
     }
 
     for (const button of card.querySelectorAll('[data-fee-type]')) {
@@ -650,6 +655,7 @@ details[open] .chevron { transform: rotate(225deg); }
     card.querySelector('[data-quantity="1"]').disabled = quantity >= MAX_QUANTITY;
 
     const complete = result.status === 'complete';
+    card.querySelector('.done-item').hidden = !complete;
     const resultElement = card.querySelector('.item-result');
     const rateElement = card.querySelector('.item-return');
     resultElement.dataset.state = complete ? (result.profit < 0 ? 'loss' : 'profit') : 'empty';
@@ -734,10 +740,24 @@ details[open] .chevron { transform: rotate(225deg); }
     item[input.dataset.field] = input.value;
   });
 
-  // Enter를 누르면 다음 입력칸으로 이동합니다.
+  // 입력이 끝난 상품을 접습니다.
+  function finishItem(card, item) {
+    document.activeElement?.blur();
+    item.collapsed = true;
+    update();
+    card.scrollIntoView({ block: 'nearest' });
+    announce(`${item.name || '상품'} 입력을 마치고 접었습니다.`);
+  }
+
+  // Enter를 누르면 다음 입력칸으로 이동합니다. 수량에서 누르면 입력 완료로 접힙니다.
   itemsElement.addEventListener('keydown', event => {
     if (event.key !== 'Enter' || !event.target.matches('input')) return;
     event.preventDefault();
+    if (event.target.matches('.quantity-input')) {
+      const card = event.target.closest('.item-card');
+      const item = itemOf(card);
+      if (calculateItem(item, parseRate(rateInput.value)).status === 'complete') return finishItem(card, item);
+    }
     const inputs = Array.from(itemsElement.querySelectorAll('input'));
     const next = inputs[inputs.indexOf(event.target) + 1];
     if (next) next.focus(); else event.target.blur();
@@ -747,6 +767,7 @@ details[open] .chevron { transform: rotate(225deg); }
     const card = event.target.closest('.item-card');
     if (!card) return;
     const item = itemOf(card);
+    if (event.target.closest('.done-item')) return finishItem(card, item);
     // 접힌 카드는 상품 이익 줄을 눌러도 펼쳐집니다.
     if (event.target.closest('.collapse-item') || (item.collapsed && event.target.closest('.item-result'))) {
       item.collapsed = !item.collapsed;
