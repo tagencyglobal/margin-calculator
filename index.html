@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#174e3c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="마진 계산기">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<title>마진 계산기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="원가, 판매가, 수수료를 입력하고 상품별 이익과 원가 총액, 이익 총액, 원가 대비 수익률을 바로 계산하세요.">
+<style>
+/* 레이아웃: 왼쪽 상품 입력 카드 목록 + 오른쪽 고정 합계 카드, 좁은 화면에서는 한 줄로 쌓고 하단 합계 바를 띄운다 */
+:root {
+  --bg: #f5f6f3;
+  --fg: #202c27;
+  --surface: #ffffff;
+  --field: #f8f9f7;
+  --field-line: #dde4db;
+  --line: #dfe5de;
+  --muted: #66736b;
+  --brand: #174e3c;
+  --accent: #174e3c;
+  --lime: #daf69b;
+  --red: #b83e3c;
+  --chip: #e6eae3;
+  --chip-fg: #4b5c4c;
+  --index-bg: #f0f3ed;
+  --index-fg: #59734f;
+  --toggle-bg: #edf0e9;
+  --toggle-on: #ffffff;
+  --toggle-fg: #5d6c5b;
+  --result-bg: #f3f7ee;
+  --result-line: #e8eedf;
+  --result-label: #4e6450;
+  --result-fg: #245331;
+  --result-empty: #71816d;
+  --return-bg: #e2edcf;
+  --return-fg: #42622e;
+  --loss-bg: #fcf2ef;
+  --loss-line: #f6e4df;
+  --loss-chip: #f9e0d9;
+  --loss-fg: #a93532;
+  --remove-hover: #f7eeec;
+  --add-line: #aabb9f;
+  --add-hover: #edf2e7;
+  --placeholder: #9aa699;
+  --unit: #637061;
+  --summary: #174e3c;
+  --bar-bg: #fbfcf8f2;
+  --bar-line: #dce4d7;
+  --bar-fg: #54624e;
+  --focus: #4e8062;
+  --backdrop: #17261c77;
+  --danger: #ac3e38;
+  --font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", "Noto Sans KR", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1512; --fg: #e3ebe4; --surface: #171f1b; --field: #1c2520; --field-line: #2d3a32; --line: #26322b;
+    --muted: #93a297; --brand: #1d5a45; --accent: #a6d9b1; --red: #f08a80;
+    --chip: #24302a; --chip-fg: #b8c8bb; --index-bg: #222d26; --index-fg: #a6c79c;
+    --toggle-bg: #222c26; --toggle-on: #33433a; --toggle-fg: #9fb0a2;
+    --result-bg: #1b2a20; --result-line: #24362a; --result-label: #a5baa7; --result-fg: #c8eeb0; --result-empty: #8a9a8c;
+    --return-bg: #2d4626; --return-fg: #d3f0a6;
+    --loss-bg: #2c1a18; --loss-line: #3d2420; --loss-chip: #4a2420; --loss-fg: #ffb3a8;
+    --remove-hover: #33201d; --add-line: #3f5643; --add-hover: #1b2820; --placeholder: #66756a; --unit: #95a596;
+    --summary: #174535; --bar-bg: #131b17f2; --bar-line: #26322b; --bar-fg: #b5c4b7; --focus: #8cc39c;
+    --backdrop: #000000aa; --danger: #c4524b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1512; --fg: #e3ebe4; --surface: #171f1b; --field: #1c2520; --field-line: #2d3a32; --line: #26322b;
+  --muted: #93a297; --brand: #1d5a45; --accent: #a6d9b1; --red: #f08a80;
+  --chip: #24302a; --chip-fg: #b8c8bb; --index-bg: #222d26; --index-fg: #a6c79c;
+  --toggle-bg: #222c26; --toggle-on: #33433a; --toggle-fg: #9fb0a2;
+  --result-bg: #1b2a20; --result-line: #24362a; --result-label: #a5baa7; --result-fg: #c8eeb0; --result-empty: #8a9a8c;
+  --return-bg: #2d4626; --return-fg: #d3f0a6;
+  --loss-bg: #2c1a18; --loss-line: #3d2420; --loss-chip: #4a2420; --loss-fg: #ffb3a8;
+  --remove-hover: #33201d; --add-line: #3f5643; --add-hover: #1b2820; --placeholder: #66756a; --unit: #95a596;
+  --summary: #174535; --bar-bg: #131b17f2; --bar-line: #26322b; --bar-fg: #b5c4b7; --focus: #8cc39c;
+  --backdrop: #000000aa; --danger: #c4524b;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 1rem; line-height: 1.6; -webkit-font-smoothing: antialiased; font-synthesis: none; }
+button, input { font: inherit; color: inherit; min-height: 44px; -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; touch-action: manipulation; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+button, input, summary { outline-offset: 4px; }
+:focus-visible { outline: 3px solid var(--focus); }
+h1, h2, p { margin: 0; }
+h1, h2 { text-wrap: balance; }
+
+.page-shell { max-width: calc(1120px + 80px); margin: 0 auto; padding-left: max(40px, env(safe-area-inset-left, 0px)); padding-right: max(40px, env(safe-area-inset-right, 0px)); }
+.page-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 30px 27px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 12px; font-size: 1.125rem; font-weight: 750; line-height: 1.35; letter-spacing: -.04em; }
+.brand-caption { display: block; margin-top: 5px; font-size: .75rem; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.brand-mark { display: flex; align-items: flex-end; justify-content: center; gap: 3px; width: 42px; height: 42px; flex-shrink: 0; background: var(--brand); padding-bottom: 12px; border-radius: 12px; }
+.brand-mark span { width: 5px; height: 9px; background: var(--lime); border-radius: 1px; }
+.brand-mark span:nth-child(2) { height: 14px; }
+.brand-mark span:nth-child(3) { height: 20px; }
+.header-note { font-size: .875rem; color: var(--muted); }
+
+.intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding-block: 37px 34px; }
+.eyebrow { color: var(--accent); font-size: .875rem; font-weight: 600; margin-bottom: 7px; }
+h1 { font-size: clamp(1.85rem, 3vw, 2.4rem); line-height: 1.35; font-weight: 750; letter-spacing: -.055em; }
+.intro-description { color: var(--muted); font-size: .9375rem; line-height: 1.7; text-align: right; }
+
+.calculator-layout { display: grid; grid-template-columns: minmax(0, 1fr) 350px; align-items: start; gap: 28px; }
+.items-panel { min-width: 0; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 17px; }
+h2 { font-size: 1.0625rem; font-weight: 700; letter-spacing: -.025em; }
+.section-heading h2 { display: flex; align-items: center; gap: 8px; }
+.count-badge { min-width: 23px; padding: 1px 7px; border-radius: 6px; background: var(--chip); color: var(--chip-fg); font-size: .8125rem; font-weight: 650; text-align: center; }
+.unit-caption { color: var(--muted); font-size: .8125rem; }
+
+#items { display: grid; gap: 14px; margin-bottom: 14px; }
+.item-card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.item-top { display: flex; align-items: center; gap: 11px; padding: 16px 22px 13px; }
+.item-index { display: grid; place-items: center; flex-shrink: 0; width: 27px; height: 27px; background: var(--index-bg); color: var(--index-fg); border-radius: 7px; font-size: .75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.item-name { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; font-weight: 650; padding: 4px; outline-offset: 0; }
+.item-name::placeholder { color: var(--fg); opacity: .85; }
+.remove-item { display: grid; place-items: center; flex: 0 0 44px; width: 44px; border: 0; background: transparent; color: var(--muted); border-radius: 9px; }
+.remove-item:hover { background: var(--remove-hover); color: var(--red); }
+.remove-item svg { width: 18px; height: 18px; }
+
+.item-fields { padding: 0 24px 24px; }
+.price-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.price-fields > div, .fee-quantity-fields > div { min-width: 0; }
+.field-label { display: block; font-size: .875rem; font-weight: 600; margin-bottom: 8px; }
+.input-wrap { display: flex; align-items: center; min-width: 0; background: var(--field); border: 1px solid var(--field-line); border-radius: 10px; transition: background .15s, border-color .15s; }
+.input-wrap:focus-within { border-color: var(--accent); background: var(--surface); }
+.input-wrap:has([aria-invalid="true"]) { border-color: var(--red); }
+.number-input { width: 100%; min-width: 0; height: 57px; border: 0; outline: none; padding: 12px 0 12px 15px; background: transparent; text-align: right; font-size: 1.375rem; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+.number-input::placeholder { color: var(--placeholder); font-weight: 450; }
+.input-unit { flex-shrink: 0; color: var(--unit); font-size: .9375rem; padding: 0 14px 0 8px; }
+
+.fee-quantity-fields { display: grid; grid-template-columns: minmax(0, 1fr) 154px; gap: 18px; margin-top: 19px; }
+.field-meta { display: flex; justify-content: space-between; align-items: center; min-height: 50px; margin-bottom: 7px; }
+.field-meta .field-label { margin: 0; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 8px; background: var(--toggle-bg); }
+.seg button { min-width: 44px; padding: 2px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--toggle-fg); font-size: .875rem; line-height: 1.5; }
+.seg button[aria-pressed="true"] { background: var(--toggle-on); color: var(--accent); font-weight: 700; box-shadow: 0 1px 3px #17271b18; }
+.krw-hint { text-align: right; font-variant-numeric: tabular-nums; }
+.krw-hint[data-ready] { color: var(--accent); font-weight: 600; }
+
+.rate-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: .8125rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rate-chip:hover { border-color: var(--add-line); }
+.rate-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.rate-chip[data-state="loading"]::before { background: var(--placeholder); }
+.rate-chip[data-state="manual"]::before, .rate-chip[data-state="saved"]::before { background: var(--add-line); }
+.rate-chip[data-state="error"] { color: var(--red); }
+.rate-chip[data-state="error"]::before { background: var(--red); }
+.rate-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 14px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.rate-editor label { color: var(--muted); font-size: .875rem; }
+.rate-wrap { flex: 1; min-width: 140px; max-width: 220px; }
+.rate-wrap .number-input { height: 44px; font-size: 1.0625rem; }
+.rate-reset { min-height: 36px; padding: 0 4px; border: 0; background: transparent; color: var(--accent); font-size: .8125rem; font-weight: 600; }
+.rate-editor .field-error { flex-basis: 100%; margin: 0; }
+.fee-quantity-fields .number-input { height: 50px; font-size: 1.125rem; }
+.quantity-control { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; min-height: 52px; border: 1px solid var(--field-line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.quantity-control:focus-within { border-color: var(--accent); }
+.quantity-control:has([aria-invalid="true"]) { border-color: var(--red); }
+.quantity-control button { border: 0; background: transparent; font-size: 1.25rem; padding: 0; min-height: 50px; }
+.quantity-control button:hover:not(:disabled) { background: var(--result-bg); }
+.quantity-input { width: 100%; min-width: 0; border: 0; padding: 0; outline: none; background: transparent; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.field-hint { margin-top: 7px; font-size: .8125rem; color: var(--muted); }
+.field-error { margin-top: 7px; font-size: .8125rem; color: var(--red); }
+
+.item-result { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 24px; background: var(--result-bg); border-top: 1px solid var(--result-line); }
+.item-result-label { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .875rem; color: var(--result-label); }
+.item-result-values { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 10px; font-variant-numeric: tabular-nums; min-width: 0; }
+.item-profit { font-size: 1.125rem; font-weight: 700; color: var(--result-fg); overflow-wrap: anywhere; }
+.item-return { padding: 2px 8px; border-radius: 5px; background: var(--return-bg); color: var(--return-fg); font-size: .8125rem; font-weight: 650; }
+.item-result[data-state="loss"] { background: var(--loss-bg); border-color: var(--loss-line); }
+.item-result[data-state="loss"] .item-profit { color: var(--red); }
+.item-result[data-state="loss"] .item-return { background: var(--loss-chip); color: var(--loss-fg); }
+.item-result[data-state="empty"] .item-profit { color: var(--result-empty); font-size: .875rem; font-weight: 400; }
+
+.add-button { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; min-height: 56px; color: var(--accent); background: transparent; border: 1px dashed var(--add-line); border-radius: 12px; font-size: .9375rem; font-weight: 600; }
+.add-button:hover:not(:disabled) { background: var(--add-hover); border-color: var(--accent); }
+.add-button span { font-size: 1.375rem; font-weight: 400; }
+.input-note { color: var(--muted); font-size: .8125rem; text-align: center; margin-top: 14px; }
+
+.summary-panel { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); margin-top: 44px; min-width: 0; }
+.summary-card { padding: 25px; border-radius: 18px; background: var(--summary); color: #ffffff; box-shadow: 0 8px 24px #1d3e2510; }
+.summary-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.summary-heading h2 { font-size: 1rem; font-weight: 650; }
+.summary-heading > span { color: #c0d4c6; font-size: .8125rem; text-align: right; }
+.profit-hero { margin-top: 32px; }
+.result-label { color: #d1dfd2; font-size: .875rem; }
+.profit-value { display: flex; align-items: baseline; gap: 7px; margin-top: 2px; color: var(--lime); line-height: 1.4; font-variant-numeric: tabular-nums; }
+.profit-value > span:first-child { min-width: 0; font-size: clamp(1.75rem, 3vw, 2.5rem); font-weight: 650; letter-spacing: -.05em; overflow-wrap: anywhere; }
+.currency { font-size: 1.125rem; font-weight: 500; }
+.return-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; padding: 12px 14px; background: #ffffff0d; border: 1px solid #ffffff14; border-radius: 8px; font-size: .875rem; color: #e1e9dd; }
+.return-row strong { color: var(--lime); font-size: 1.125rem; font-weight: 650; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.summary-divider { height: 1px; margin: 25px 0 20px; background: #ffffff21; }
+.totals-list { display: grid; gap: 13px; margin: 0; }
+.totals-list > div { display: flex; justify-content: space-between; gap: 15px; font-size: .875rem; }
+.totals-list dt { color: #c6d8c9; flex-shrink: 0; }
+.totals-list dd { margin: 0; font-size: .9375rem; font-weight: 550; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.distribution { margin-top: 25px; }
+.distribution-bar { display: flex; height: 8px; gap: 2px; border-radius: 4px; overflow: hidden; }
+.distribution-bar span { min-width: 0; transition: width .2s; }
+#cost-segment, .cost-dot { background: #89a68d; }
+#fee-segment, .fee-dot { background: #d9e8d8; }
+#profit-segment, .profit-dot { background: var(--lime); }
+.distribution-legend { display: flex; gap: 16px; margin-top: 9px; color: #c6d8c9; font-size: .75rem; }
+.distribution-legend span { display: flex; align-items: center; gap: 5px; }
+.distribution-legend i { width: 6px; height: 6px; border-radius: 2px; }
+.summary-status { margin-top: 23px; font-size: .8125rem; color: #c6d8c9; }
+.summary-rate { margin-top: 6px; font-size: .75rem; color: #a9c2ae; font-variant-numeric: tabular-nums; }
+.summary-card[data-state="loss"] .profit-value, .summary-card[data-state="loss"] .return-row strong { color: #ffc4b2; }
+
+.calculation-guide { margin: 14px 1px 0; border-bottom: 1px solid var(--line); }
+.calculation-guide summary { display: flex; justify-content: space-between; align-items: center; min-height: 50px; gap: 12px; list-style: none; font-size: .875rem; color: var(--muted); cursor: pointer; }
+summary::-webkit-details-marker { display: none; }
+.chevron { width: 7px; height: 7px; margin-right: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
+details[open] .chevron { transform: rotate(225deg); }
+.guide-body { display: grid; gap: 11px; padding: 6px 0 20px; font-size: .8125rem; color: var(--muted); }
+.guide-body strong { font-weight: 650; color: var(--fg); }
+
+.page-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 47px; padding-block: 24px 28px; border-top: 1px solid var(--line); font-size: .75rem; color: var(--muted); }
+.page-footer span:last-child { flex-shrink: 0; letter-spacing: .07em; }
+
+.mobile-total { display: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+.confirm-dialog { width: min(380px, calc(100% - 36px)); border: 1px solid var(--line); border-radius: 18px; padding: 26px; color: var(--fg); background: var(--surface); }
+.confirm-dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(3px); }
+.confirm-dialog h2 { margin-bottom: 8px; font-size: 1.125rem; }
+.confirm-dialog p { font-size: .875rem; color: var(--muted); }
+.dialog-actions { display: flex; gap: 10px; margin-top: 24px; }
+.dialog-actions button { flex: 1; padding: 10px; border-radius: 8px; font-weight: 600; font-size: .875rem; }
+.secondary-button { border: 1px solid var(--line); background: var(--field); }
+.danger-button { border: 1px solid var(--danger); background: var(--danger); color: #ffffff; }
+
+@media (max-width: 960px) {
+  .page-shell { padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+  .calculator-layout { grid-template-columns: minmax(0, 1fr) 310px; gap: 20px; }
+  .item-top { padding-left: 16px; padding-right: 16px; }
+  .item-fields { padding-left: 18px; padding-right: 18px; }
+  .fee-quantity-fields { grid-template-columns: minmax(0, 1fr) 130px; gap: 14px; }
+  .summary-card { padding: 22px; }
+}
+@media (max-width: 760px) {
+  .page-shell { max-width: calc(560px + 36px); padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+  .page-header { padding-block: 20px; }
+  .brand { font-size: 1rem; gap: 10px; }
+  .brand-mark { width: 36px; height: 36px; border-radius: 10px; padding-bottom: 9px; }
+  .brand-caption { margin-top: 3px; }
+  .header-note { display: none; }
+  .intro { padding-block: 23px 25px; align-items: flex-start; flex-direction: column; gap: 8px; }
+  .intro-description { font-size: .875rem; text-align: left; }
+  .eyebrow { font-size: .8125rem; margin-bottom: 4px; }
+  h1 { font-size: 1.75rem; }
+  .desktop-break { display: none; }
+  .calculator-layout { display: flex; flex-direction: column; gap: 27px; }
+  .items-panel, .summary-panel { width: 100%; }
+  .section-heading { margin-bottom: 12px; }
+  .item-card { border-radius: 14px; }
+  .item-top { padding: 9px 12px 8px 17px; gap: 8px; }
+  .item-fields { padding: 0 18px 20px; }
+  .price-fields { gap: 12px; }
+  .number-input { height: 55px; font-size: 1.25rem; padding-left: 9px; }
+  .input-unit { padding: 0 11px 0 6px; font-size: .875rem; }
+  .fee-quantity-fields { margin-top: 16px; grid-template-columns: minmax(0, 1fr) 126px; gap: 14px; }
+  .field-hint { font-size: .75rem; }
+  .item-result { padding: 13px 18px; }
+  .item-result-values { gap: 6px; }
+  .item-profit { font-size: 1rem; }
+  .item-return { font-size: .75rem; }
+  .add-button { min-height: 52px; }
+  .input-note { font-size: .75rem; margin-top: 11px; }
+  .summary-panel { position: static; margin-top: 0; }
+  .summary-card { padding: 25px; }
+  .profit-hero { margin-top: 24px; }
+  .profit-value > span:first-child { font-size: 2.25rem; }
+  .return-row { margin-top: 16px; }
+  .summary-status { margin-top: 20px; }
+  .page-footer { margin-top: 30px; padding-bottom: calc(117px + env(safe-area-inset-bottom, 0px)); }
+  .page-footer span:first-child { max-width: 235px; }
+  .mobile-total { display: flex; justify-content: space-between; align-items: center; gap: 12px; position: fixed; z-index: 5; bottom: 0; left: 0; right: 0; padding-top: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); padding-left: max(18px, env(safe-area-inset-left, 0px), calc((100% - 560px) / 2)); padding-right: max(18px, env(safe-area-inset-right, 0px), calc((100% - 560px) / 2)); border-top: 1px solid var(--bar-line); background: var(--bar-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .mobile-total > div { min-width: 0; }
+  .mobile-total > div > span { display: block; color: var(--muted); font-size: .75rem; }
+  .mobile-total strong { display: flex; align-items: baseline; gap: 5px; font-size: 1.25rem; color: var(--accent); line-height: 1.5; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .mobile-total strong > span { min-width: 0; }
+  .mobile-total small { font-size: .8125rem; font-weight: 500; }
+  .mobile-total .mobile-cost strong { font-size: 1rem; color: var(--bar-fg); }
+  .mobile-total button { display: flex; align-items: center; gap: 8px; max-width: 43%; flex-shrink: 0; padding: 9px 12px; border: 0; border-radius: 9px; background: var(--brand); color: #f1f8e9; font-size: .875rem; font-weight: 600; }
+  .mobile-total[data-state="loss"] strong { color: var(--red); }
+}
+@media (max-width: 430px) {
+  .mobile-total { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 15px; }
+  .mobile-total > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; grid-column: 1; }
+  .mobile-total > div > span { flex-shrink: 0; }
+  .mobile-total strong { font-size: 1.125rem; text-align: right; }
+  .mobile-total .mobile-cost strong { font-size: .875rem; }
+  .mobile-total button { grid-column: 2; grid-row: 1 / 3; max-width: 100px; }
+}
+@media (max-width: 360px) {
+  .page-shell { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .item-fields { padding-left: 13px; padding-right: 13px; }
+  .price-fields { gap: 10px; }
+  .fee-quantity-fields { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .fee-quantity-fields > div:last-child { display: grid; grid-template-columns: minmax(0, 1fr) 132px; align-items: center; gap: 0 10px; }
+  .fee-quantity-fields > div:last-child .field-meta { margin: 0; }
+  .fee-quantity-fields > div:last-child .field-error { grid-column: 1 / -1; }
+  .number-input { font-size: 1.125rem; }
+  .item-result { padding-left: 13px; padding-right: 13px; }
+  .item-result-values { flex-direction: column; align-items: flex-end; gap: 3px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+
+<div class="page-shell">
+  <header class="page-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span>마진 계산기<span class="brand-caption">MARGIN CALCULATOR</span></span>
+    </div>
+    <span class="header-note">숫자를 바꾸면, 이익이 바로 보여요.</span>
+  </header>
+
+  <main>
+    <div class="intro">
+      <div><p class="eyebrow">판매 전, 계산부터.</p><h1>얼마가 남을까?</h1></div>
+      <p class="intro-description">원가와 판매가를 넣고<br class="desktop-break"> 수수료를 뺀 이익을 확인하세요.</p>
+    </div>
+
+    <div class="calculator-layout">
+      <section class="items-panel" aria-labelledby="items-title">
+        <div class="section-heading"><h2 id="items-title">상품 입력 <span class="count-badge" id="item-count">1</span></h2><button type="button" class="rate-chip" id="rate-chip" data-state="loading" aria-expanded="false" aria-controls="rate-editor" title="환율 고치기"><span id="rate-chip-text">환율 불러오는 중…</span></button></div>
+        <div class="rate-editor" id="rate-editor" hidden>
+          <label for="gbp-rate">£1 =</label>
+          <div class="input-wrap rate-wrap"><input class="number-input" id="gbp-rate" type="text" inputmode="decimal" maxlength="10" autocomplete="off" spellcheck="false" aria-describedby="rate-error"><span class="input-unit">원</span></div>
+          <button type="button" class="rate-reset" id="rate-reset" hidden>오늘 환율로 되돌리기</button>
+          <p class="field-error" id="rate-error" hidden></p>
+        </div>
+        <div id="items"></div>
+        <button class="add-button" id="add-item" type="button"><span aria-hidden="true">＋</span> 상품 추가</button>
+        <p class="input-note">여러 상품을 추가하면 원가와 이익이 모두 합산됩니다.<br>입력 내용은 새로고침하거나 페이지를 닫으면 사라집니다.</p>
+      </section>
+
+      <aside class="summary-panel" aria-labelledby="summary-title">
+        <div class="summary-card" id="summary-card" data-state="profit">
+          <div class="summary-heading"><h2 id="summary-title">전체 합계</h2><span id="summary-count">입력 대기</span></div>
+          <div class="profit-hero"><span class="result-label">이익 총액</span><p class="profit-value"><span id="total-profit">—</span><span class="currency">원</span></p></div>
+          <div class="return-row"><span>원가 대비 수익률</span><strong id="total-return">—</strong></div>
+          <div class="summary-divider"></div>
+          <dl class="totals-list">
+            <div><dt>판매가 총액</dt><dd id="total-sales">— 원</dd></div>
+            <div><dt>원가 총액</dt><dd id="total-cost">— 원</dd></div>
+            <div><dt>수수료 총액</dt><dd id="total-fees">— 원</dd></div>
+          </dl>
+          <div class="distribution" id="distribution" hidden>
+            <div class="distribution-bar" aria-hidden="true"><span id="cost-segment"></span><span id="fee-segment"></span><span id="profit-segment"></span></div>
+            <div class="distribution-legend"><span><i class="cost-dot"></i>원가</span><span><i class="fee-dot"></i>수수료</span><span><i class="profit-dot"></i>이익</span></div>
+          </div>
+          <p class="summary-status" id="summary-status">원가와 판매가를 입력해 주세요.</p>
+          <p class="summary-rate" id="summary-rate" hidden></p>
+        </div>
+        <details class="calculation-guide" id="calculation-guide">
+          <summary>어떻게 계산하나요?<span class="chevron" aria-hidden="true"></span></summary>
+          <div class="guide-body">
+            <p><strong>이익</strong> = 판매가 − 원가 − 수수료</p>
+            <p><strong>원가 대비 수익률</strong> = 이익 ÷ 원가 × 100</p>
+            <p>금액과 수수료는 상품 1개 기준입니다. 상품별 금액에 수량을 곱해 합산합니다.</p>
+            <p>£로 넣은 원가·판매가는 환율을 곱해 1개당 원 단위로 반올림한 뒤 계산합니다. 수수료와 합계는 모두 원화입니다.</p>
+            <p>환율은 페이지를 열 때마다 매일 갱신되는 기준 환율을 불러옵니다. 카드사·송금 환율과는 조금 다를 수 있으니, 상단의 환율을 눌러 고쳐 쓸 수 있습니다.</p>
+            <p>% 수수료는 판매가에 적용하고, 1개당 수수료를 원 단위로 반올림합니다. 원가가 0원이면 수익률을 계산하지 않습니다.</p>
+            <p>배송비·세금 등 별도 비용은 포함하지 않습니다.</p>
+          </div>
+        </details>
+      </aside>
+    </div>
+  </main>
+  <footer class="page-footer"><span>팔기 전에 한 번, 남는 금액을 확인하세요.</span><span>₩ KRW</span></footer>
+</div>
+
+<div class="mobile-total" aria-label="전체 이익 요약">
+  <div class="mobile-cost"><span>원가 총액</span><strong><span id="mobile-cost">—</span><small>원</small></strong></div>
+  <div><span id="mobile-profit-label">이익 총액</span><strong><span id="mobile-profit">—</span><small>원</small></strong></div>
+  <button type="button" id="mobile-jump" aria-label="전체 합계 자세히 보기"><span id="mobile-return">합계 보기</span><span aria-hidden="true">↗</span></button>
+</div>
+<p id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+<dialog id="remove-dialog" class="confirm-dialog" aria-labelledby="remove-title" aria-describedby="remove-description">
+  <h2 id="remove-title">상품을 삭제할까요?</h2>
+  <p id="remove-description">입력한 금액이 전체 합계에서 제외됩니다.</p>
+  <div class="dialog-actions"><button type="button" class="secondary-button" data-close="cancel">취소</button><button type="button" class="danger-button" data-close="remove">상품 삭제</button></div>
+</dialog>
+
+<script>
+(() => {
+  // ── 계산 규칙 ──────────────────────────────────────────
+  const MAX_MONEY = 999_999_999;
+  const MAX_QUANTITY = 9_999;
+  const MAX_ITEMS = 100;
+  const MAX_GBP = 9_999_999.99;
+  const RATE_KEY = 'margin-calculator:last-gbp-rate';
+  // 앞의 곳이 응답하지 않으면 다음 곳에서 환율을 받아옵니다.
+  const RATE_SOURCES = [
+    { url: 'https://open.er-api.com/v6/latest/GBP', read: data => ({ rate: data?.rates?.KRW, date: data?.time_last_update_unix * 1000 }) },
+    { url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/gbp.json', read: data => ({ rate: data?.gbp?.krw, date: Date.parse(data?.date) }) },
+  ];
+
+  // 파운드는 펜스와 환율을 정수로 바꿔 곱한 뒤 1원 단위로 반올림합니다.
+  const toKrw = (value, currency, rate) => currency === 'GBP'
+    ? Math.floor((Math.round(value * 100) * Math.round(rate * 100) + 5_000) / 10_000)
+    : value;
+
+  function parseRate(value) {
+    const rate = parseNumber(value);
+    return Number.isFinite(rate) && rate > 0 && rate <= 100_000 ? rate : null;
+  }
+
+  function parseNumber(value) {
+    const raw = String(value ?? '').trim();
+    if (raw.includes(',') && !/^\d{1,3}(?:,\d{3})+(?:\.\d{0,2})?$/.test(raw)) return NaN;
+    const text = raw.replaceAll(',', '');
+    if (text === '') return null;
+    if (!/^\d+(?:\.\d{0,2})?$/.test(text)) return NaN;
+    return Number(text);
+  }
+
+  function calculateItem(item, rate) {
+    const cost = parseNumber(item.cost);
+    const sale = parseNumber(item.sale);
+    const fee = parseNumber(item.fee) ?? 0;
+    const quantity = parseNumber(item.quantity);
+    const errors = {};
+
+    for (const [key, value] of [['cost', cost], ['sale', sale]]) {
+      if (value === null) continue;
+      if (item[`${key}Currency`] === 'GBP') {
+        if (!Number.isFinite(value) || value > MAX_GBP) errors[key] = '£0~9,999,999.99 사이로, 소수점 둘째 자리까지 입력해 주세요.';
+      } else if (!Number.isInteger(value) || value < 0 || value > MAX_MONEY) {
+        errors[key] = '0~999,999,999원 사이의 정수를 입력해 주세요.';
+      }
+    }
+    if (!Number.isFinite(fee) || fee < 0) {
+      errors.fee = '0 이상의 숫자를 입력해 주세요.';
+    } else if (item.feeType === 'percent' && fee > 100) {
+      errors.fee = '수수료율은 0~100%로 입력해 주세요.';
+    } else if (item.feeType === 'won' && (!Number.isInteger(fee) || fee > MAX_MONEY)) {
+      errors.fee = '0~999,999,999원 사이의 정수를 입력해 주세요.';
+    }
+    if (quantity === null || !Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) {
+      errors.quantity = '수량은 1~9,999개로 입력해 주세요.';
+    }
+
+    if (Object.keys(errors).length) return { status: 'invalid', errors };
+    if (cost === null || sale === null) return { status: 'incomplete', errors: {} };
+    const usesGbp = item.costCurrency === 'GBP' || item.saleCurrency === 'GBP';
+    if (usesGbp && rate === null) return { status: 'needs-rate', errors: {} };
+    const unitCost = toKrw(cost, item.costCurrency, rate);
+    const unitSale = toKrw(sale, item.saleCurrency, rate);
+
+    // 정수 연산으로 1개당 수수료를 원 단위 반올림합니다.
+    const unitFee = item.feeType === 'percent'
+      ? Math.floor((unitSale * Math.round(fee * 100) + 5_000) / 10_000)
+      : fee;
+    const totalCost = unitCost * quantity;
+    const totalSales = unitSale * quantity;
+    const totalFees = unitFee * quantity;
+    const profit = totalSales - totalCost - totalFees;
+    return {
+      status: 'complete', errors: {}, quantity, unitFee, usesGbp,
+      cost: totalCost, sales: totalSales, fees: totalFees, profit,
+      returnRate: totalCost > 0 ? profit / totalCost * 100 : null,
+    };
+  }
+
+  function calculateTotals(items, rate) {
+    const results = items.map(item => calculateItem(item, rate));
+    const complete = results.filter(result => result.status === 'complete');
+    const total = complete.reduce((sum, r) => ({
+      cost: sum.cost + r.cost, sales: sum.sales + r.sales, fees: sum.fees + r.fees,
+      profit: sum.profit + r.profit, quantity: sum.quantity + r.quantity,
+    }), { cost: 0, sales: 0, fees: 0, profit: 0, quantity: 0 });
+    return {
+      ...total,
+      returnRate: total.cost > 0 ? total.profit / total.cost * 100 : null,
+      completeCount: complete.length,
+      excludedCount: items.length - complete.length,
+      results,
+    };
+  }
+
+  // ── 화면 ───────────────────────────────────────────────
+  const wonFormat = new Intl.NumberFormat('ko-KR');
+  const rateFormat = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 });
+  const money = value => wonFormat.format(value);
+  const rate = value => value === null ? '—' : `${value > 0 ? '+' : ''}${rateFormat.format(value)}%`;
+  const text = (id, value) => { document.getElementById(id).textContent = value; };
+
+  const itemsElement = document.getElementById('items');
+  const addButton = document.getElementById('add-item');
+  const removeDialog = document.getElementById('remove-dialog');
+  const rateInput = document.getElementById('gbp-rate');
+  const items = [];
+  let nextId = 1;
+  let pendingRemoval = null;
+  let announcementTimer;
+  // kind: loading(불러오는 중) · live(오늘 환율) · saved(지난번에 받은 환율) · manual(직접 입력) · error
+  let rateState = { kind: 'loading', date: null };
+  let fetchedRate = null;
+
+  // 새 상품은 바로 앞 상품의 통화 선택을 이어받습니다.
+  function makeItem() {
+    const last = items[items.length - 1];
+    return {
+      id: nextId++, name: '', cost: '', sale: '',
+      costCurrency: last?.costCurrency ?? 'KRW', saleCurrency: last?.saleCurrency ?? 'KRW',
+      fee: '', feeType: 'percent', feeInputs: { percent: '', won: '' }, quantity: '1',
+    };
+  }
+
+  function priceField(prefix, field, label) {
+    return `<div><div class="field-meta"><label class="field-label" for="${prefix}-${field}">${label}</label><div class="seg" role="group" aria-label="${label} 통화"><button type="button" data-currency-field="${field}" data-currency="KRW" aria-label="${label} 원화로 입력" aria-pressed="true">₩</button><button type="button" data-currency-field="${field}" data-currency="GBP" aria-label="${label} 파운드로 입력" aria-pressed="false">£</button></div></div><div class="input-wrap"><input class="number-input" id="${prefix}-${field}" data-field="${field}" type="text" inputmode="numeric" enterkeyhint="next" placeholder="0" maxlength="14" autocomplete="off" spellcheck="false" aria-describedby="${prefix}-${field}-krw ${prefix}-${field}-error"><span class="input-unit ${field}-unit">원</span></div><p class="field-hint krw-hint" id="${prefix}-${field}-krw" hidden></p><p class="field-error" id="${prefix}-${field}-error" hidden></p></div>`;
+  }
+
+  function itemTemplate(item) {
+    const prefix = `item-${item.id}`;
+    const n = items.length;
+    return `<article class="item-card" data-id="${item.id}" aria-label="상품 ${n}">
+      <div class="item-top">
+        <span class="item-index" aria-hidden="true">${String(n).padStart(2, '0')}</span>
+        <input class="item-name" id="${prefix}-name" data-field="name" aria-label="상품 ${n} 이름" placeholder="상품 ${n}" maxlength="60" autocomplete="off">
+        <button type="button" class="remove-item" aria-label="상품 ${n} 삭제" title="상품 삭제"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg></button>
+      </div>
+      <div class="item-fields">
+        <div class="price-fields">${priceField(prefix, 'cost', '원가')}${priceField(prefix, 'sale', '판매가')}</div>
+        <div class="fee-quantity-fields">
+          <div>
+            <div class="field-meta"><label class="field-label" for="${prefix}-fee">수수료</label><div class="seg" role="group" aria-label="수수료 단위"><button type="button" data-fee-type="percent" aria-label="퍼센트 수수료" aria-pressed="true">%</button><button type="button" data-fee-type="won" aria-label="원 수수료" aria-pressed="false">원</button></div></div>
+            <div class="input-wrap"><input class="number-input" id="${prefix}-fee" data-field="fee" type="text" inputmode="decimal" enterkeyhint="next" placeholder="0" maxlength="14" autocomplete="off" spellcheck="false" aria-describedby="${prefix}-fee-hint ${prefix}-fee-error"><span class="input-unit fee-unit">%</span></div>
+            <p class="field-hint" id="${prefix}-fee-hint">판매가 기준 · 1개 기준</p>
+            <p class="field-error" id="${prefix}-fee-error" hidden></p>
+          </div>
+          <div>
+            <div class="field-meta"><label class="field-label" for="${prefix}-quantity">수량</label></div>
+            <div class="quantity-control"><button type="button" data-quantity="-1" aria-label="수량 줄이기" disabled>−</button><input class="quantity-input" id="${prefix}-quantity" data-field="quantity" type="text" inputmode="numeric" enterkeyhint="done" value="1" maxlength="5" autocomplete="off" aria-describedby="${prefix}-quantity-error"><button type="button" data-quantity="1" aria-label="수량 늘리기">＋</button></div>
+            <p class="field-error" id="${prefix}-quantity-error" hidden></p>
+          </div>
+        </div>
+      </div>
+      <div class="item-result" data-state="empty"><span class="item-result-label">상품 이익 <span class="item-quantity-note"></span></span><div class="item-result-values"><strong class="item-profit">입력 대기</strong><span class="item-return" hidden>—</span></div></div>
+    </article>`;
+  }
+
+  function announce(message) {
+    clearTimeout(announcementTimer);
+    announcementTimer = setTimeout(() => text('announcement', message), 500);
+  }
+
+  function addItem(focus = true) {
+    if (items.length >= MAX_ITEMS) return;
+    const item = makeItem();
+    items.push(item);
+    itemsElement.insertAdjacentHTML('beforeend', itemTemplate(item));
+    update();
+    if (focus) {
+      const card = itemsElement.lastElementChild;
+      card.scrollIntoView({ block: 'nearest' });
+      card.querySelector('[data-field="cost"]').focus({ preventScroll: true });
+      announce('상품을 추가했습니다. 원가를 입력해 주세요.');
+    }
+  }
+
+  function updateItem(card, item, result, index, gbpRate) {
+    const prefix = `item-${item.id}`;
+    const label = item.name || `상품 ${index + 1}`;
+    card.setAttribute('aria-label', label);
+    card.querySelector('.item-index').textContent = String(index + 1).padStart(2, '0');
+    const nameInput = card.querySelector('.item-name');
+    nameInput.placeholder = `상품 ${index + 1}`;
+    nameInput.setAttribute('aria-label', `상품 ${index + 1} 이름`);
+    card.querySelector('.remove-item').setAttribute('aria-label', `${label} 삭제`);
+
+    for (const field of ['cost', 'sale', 'fee', 'quantity']) {
+      const error = result.errors[field];
+      card.querySelector(`[data-field="${field}"]`).setAttribute('aria-invalid', String(Boolean(error)));
+      const message = document.getElementById(`${prefix}-${field}-error`);
+      message.hidden = !error;
+      message.textContent = error || '';
+    }
+
+    // 파운드로 넣은 원가·판매가는 입력칸 아래에 원화 환산액을 바로 보여줍니다.
+    for (const field of ['cost', 'sale']) {
+      const currency = item[`${field}Currency`];
+      const isGbp = currency === 'GBP';
+      for (const button of card.querySelectorAll(`[data-currency-field="${field}"]`)) {
+        button.setAttribute('aria-pressed', String(button.dataset.currency === currency));
+      }
+      card.querySelector(`[data-field="${field}"]`).inputMode = isGbp ? 'decimal' : 'numeric';
+      card.querySelector(`.${field}-unit`).textContent = isGbp ? '£' : '원';
+      const hint = document.getElementById(`${prefix}-${field}-krw`);
+      const value = parseNumber(item[field]);
+      const ready = isGbp && gbpRate !== null && value !== null && !result.errors[field];
+      hint.hidden = !isGbp;
+      hint.toggleAttribute('data-ready', ready);
+      hint.textContent = !isGbp ? ''
+        : ready ? `≈ ${money(toKrw(value, 'GBP', gbpRate))}원`
+        : gbpRate === null ? (rateState.kind === 'loading' ? '환율 불러오는 중…' : '환율을 넣으면 원화로 바꿔 보여드려요')
+        : '원화 환산액이 여기에 표시됩니다';
+    }
+
+    for (const button of card.querySelectorAll('[data-fee-type]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.feeType === item.feeType));
+    }
+    const isPercent = item.feeType === 'percent';
+    card.querySelector('.fee-unit').textContent = isPercent ? '%' : '원';
+    card.querySelector('[data-field="fee"]').inputMode = isPercent ? 'decimal' : 'numeric';
+    document.getElementById(`${prefix}-fee-hint`).textContent = isPercent
+      ? `판매가 기준${result.status === 'complete' ? ` · 1개당 ${money(result.unitFee)}원` : ' · 1개 기준'}`
+      : '1개당 수수료 금액(원화)';
+    const quantity = parseNumber(item.quantity);
+    card.querySelector('[data-quantity="-1"]').disabled = !(quantity > 1);
+    card.querySelector('[data-quantity="1"]').disabled = quantity >= MAX_QUANTITY;
+
+    const complete = result.status === 'complete';
+    const resultElement = card.querySelector('.item-result');
+    const rateElement = card.querySelector('.item-return');
+    resultElement.dataset.state = complete ? (result.profit < 0 ? 'loss' : 'profit') : 'empty';
+    card.querySelector('.item-profit').textContent = complete ? `${money(result.profit)}원` : result.status === 'invalid' ? '입력값을 확인해 주세요' : result.status === 'needs-rate' ? '환율을 입력해 주세요' : '입력 대기';
+    rateElement.hidden = !complete || result.returnRate === null;
+    rateElement.textContent = complete ? rate(result.returnRate) : '—';
+    rateElement.setAttribute('aria-label', complete ? `원가 대비 수익률 ${rate(result.returnRate)}` : '');
+    card.querySelector('.item-quantity-note').textContent = complete && result.quantity > 1 ? `${money(result.quantity)}개 합계` : '';
+  }
+
+  function update() {
+    const gbpRate = parseRate(rateInput.value);
+    const rateInvalid = rateInput.value.trim() !== '' && gbpRate === null;
+    rateInput.setAttribute('aria-invalid', String(rateInvalid));
+    document.getElementById('rate-error').hidden = !rateInvalid;
+    text('rate-error', rateInvalid ? '0보다 큰 숫자를 입력해 주세요. 예: 1,776.41' : '');
+    renderRateChip(gbpRate);
+
+    const totals = calculateTotals(items, gbpRate);
+    items.forEach((item, index) => updateItem(itemsElement.children[index], item, totals.results[index], index, gbpRate));
+    const usedRate = totals.results.some(r => r.status === 'complete' && r.usesGbp);
+    document.getElementById('summary-rate').hidden = !usedRate;
+    text('summary-rate', usedRate ? `£ 금액은 £1 = ${money(gbpRate)}원으로 환산했습니다.` : '');
+    const hasResults = totals.completeCount > 0;
+    const amount = value => hasResults ? `${money(value)} 원` : '— 원';
+    text('item-count', items.length);
+    text('summary-count', hasResults ? `${totals.completeCount}개 상품 · ${money(totals.quantity)}개` : '입력 대기');
+    text('total-profit', hasResults ? money(totals.profit) : '—');
+    text('total-return', hasResults ? rate(totals.returnRate) : '—');
+    text('total-sales', amount(totals.sales));
+    text('total-cost', amount(totals.cost));
+    text('total-fees', amount(totals.fees));
+    text('mobile-cost', hasResults ? money(totals.cost) : '—');
+    text('mobile-profit', hasResults ? money(totals.profit) : '—');
+    text('mobile-profit-label', hasResults && totals.excludedCount ? '이익 (완료분)' : '이익 총액');
+    text('mobile-return', hasResults && totals.returnRate !== null ? rate(totals.returnRate) : '합계 보기');
+    const state = hasResults && totals.profit < 0 ? 'loss' : 'profit';
+    document.getElementById('summary-card').dataset.state = state;
+    document.querySelector('.mobile-total').dataset.state = state;
+
+    let status = '원가와 판매가를 입력해 주세요.';
+    if (hasResults) {
+      status = totals.profit < 0 ? '판매가보다 원가와 수수료가 더 큽니다.' : '수수료를 제외한 이익입니다.';
+      if (totals.cost === 0) status = '원가가 0원이므로 수익률은 계산하지 않습니다.';
+    }
+    if (totals.excludedCount && (hasResults || totals.results.some(r => r.status === 'invalid' || r.status === 'needs-rate'))) {
+      status = `입력이 끝나지 않은 ${totals.excludedCount}개 상품은 합계에서 제외됩니다.`;
+    }
+    text('summary-status', status);
+    addButton.disabled = items.length >= MAX_ITEMS;
+    addButton.title = addButton.disabled ? '상품은 최대 100개까지 추가할 수 있습니다.' : '';
+
+    const showDistribution = hasResults && totals.sales > 0 && totals.profit >= 0;
+    document.getElementById('distribution').hidden = !showDistribution;
+    if (showDistribution) {
+      for (const [segment, value] of [['cost', totals.cost], ['fee', totals.fees], ['profit', totals.profit]]) {
+        document.getElementById(`${segment}-segment`).style.width = `${value / totals.sales * 100}%`;
+      }
+    }
+    announce(hasResults ? `이익 총액 ${money(totals.profit)}원. 원가 대비 수익률 ${rate(totals.returnRate)}. ${status}` : status);
+  }
+
+  const itemOf = el => items.find(item => item.id === Number(el.closest('.item-card').dataset.id));
+
+  itemsElement.addEventListener('input', event => {
+    const input = event.target.closest('[data-field]');
+    if (!input) return;
+    itemOf(input)[input.dataset.field] = input.value;
+    update();
+  });
+
+  // 입력칸을 벗어나면 천 단위 쉼표를 붙여 보여줍니다.
+  itemsElement.addEventListener('focusout', event => {
+    const input = event.target.closest('.number-input');
+    if (!input) return;
+    const item = itemOf(input);
+    const value = parseNumber(input.value);
+    if (value === null || !Number.isFinite(value) || calculateItem(item, parseRate(rateInput.value)).errors[input.dataset.field]) return;
+    input.value = money(value);
+    item[input.dataset.field] = input.value;
+  });
+
+  // Enter를 누르면 다음 입력칸으로 이동합니다.
+  itemsElement.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || !event.target.matches('input')) return;
+    event.preventDefault();
+    const inputs = Array.from(itemsElement.querySelectorAll('input'));
+    const next = inputs[inputs.indexOf(event.target) + 1];
+    if (next) next.focus(); else event.target.blur();
+  });
+
+  itemsElement.addEventListener('click', event => {
+    const card = event.target.closest('.item-card');
+    if (!card) return;
+    const item = itemOf(card);
+    const currencyButton = event.target.closest('[data-currency]');
+    if (currencyButton) {
+      item[`${currencyButton.dataset.currencyField}Currency`] = currencyButton.dataset.currency;
+      update();
+    }
+    const feeButton = event.target.closest('[data-fee-type]');
+    const quantityButton = event.target.closest('[data-quantity]');
+    if (feeButton && item.feeType !== feeButton.dataset.feeType) {
+      item.feeInputs[item.feeType] = item.fee;
+      item.feeType = feeButton.dataset.feeType;
+      item.fee = item.feeInputs[item.feeType];
+      card.querySelector('[data-field="fee"]').value = item.fee;
+      update();
+    }
+    if (quantityButton) {
+      const current = parseNumber(item.quantity);
+      const quantity = Math.max(1, Math.min(MAX_QUANTITY, (Number.isInteger(current) ? current : 1) + Number(quantityButton.dataset.quantity)));
+      item.quantity = String(quantity);
+      card.querySelector('[data-field="quantity"]').value = item.quantity;
+      update();
+    }
+    if (event.target.closest('.remove-item')) {
+      pendingRemoval = item.id;
+      text('remove-description', `${item.name || `상품 ${items.indexOf(item) + 1}`} 입력값을 지우고 전체 합계를 다시 계산합니다.`);
+      removeDialog.returnValue = 'cancel';
+      removeDialog.showModal();
+    }
+  });
+
+  removeDialog.addEventListener('click', event => {
+    const button = event.target.closest('[data-close]');
+    if (button) removeDialog.close(button.dataset.close);
+  });
+
+  removeDialog.addEventListener('close', () => {
+    if (removeDialog.returnValue === 'remove' && pendingRemoval !== null) {
+      const index = items.findIndex(item => item.id === pendingRemoval);
+      if (index !== -1) {
+        items.splice(index, 1);
+        itemsElement.children[index].remove();
+        if (items.length === 0) addItem(false);
+        update();
+        addButton.focus();
+        announce('상품을 삭제했습니다. 합계를 다시 계산했습니다.');
+      }
+    }
+    pendingRemoval = null;
+  });
+
+  // ── 환율 ───────────────────────────────────────────────
+  const rateChip = document.getElementById('rate-chip');
+  const rateEditor = document.getElementById('rate-editor');
+  const rateReset = document.getElementById('rate-reset');
+
+  function renderRateChip(gbpRate) {
+    const day = rateState.date ? new Date(rateState.date) : null;
+    const dayText = day && !Number.isNaN(day.getTime()) ? `${day.getMonth() + 1}월 ${day.getDate()}일` : '';
+    const note = { live: `${dayText} 기준`, saved: `${dayText} 저장값`, manual: '직접 입력' }[rateState.kind];
+    rateChip.dataset.state = gbpRate === null && rateState.kind !== 'loading' ? 'error' : rateState.kind;
+    text('rate-chip-text',
+      rateState.kind === 'loading' ? '환율 불러오는 중…'
+      : gbpRate === null ? '환율을 입력해 주세요'
+      : `£1 = ${money(gbpRate)}원 · ${note}`);
+    rateReset.hidden = !(rateState.kind === 'manual' && fetchedRate);
+  }
+
+  function toggleRateEditor(open = rateEditor.hidden) {
+    rateEditor.hidden = !open;
+    rateChip.setAttribute('aria-expanded', String(open));
+    if (open) rateInput.focus();
+  }
+
+  function applyRate({ rate, kind, date }) {
+    rateState = { kind, date };
+    rateInput.value = money(rate);
+    update();
+  }
+
+  async function loadRate() {
+    for (const source of RATE_SOURCES) {
+      try {
+        const response = await fetch(source.url, { cache: 'no-store' });
+        if (!response.ok) continue;
+        const { rate, date } = source.read(await response.json());
+        if (!(rate > 0)) continue;
+        fetchedRate = { rate: Math.round(rate * 100) / 100, kind: 'live', date: date || Date.now() };
+        try { localStorage.setItem(RATE_KEY, JSON.stringify(fetchedRate)); } catch {}
+        break;
+      } catch {}
+    }
+    // 인터넷이 안 될 때는 지난번에 받아 둔 환율을 씁니다.
+    if (!fetchedRate) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(RATE_KEY));
+        if (saved?.rate > 0) fetchedRate = { ...saved, kind: 'saved' };
+      } catch {}
+    }
+    if (rateState.kind === 'manual') return update();
+    if (fetchedRate) return applyRate(fetchedRate);
+    rateState = { kind: 'error', date: null };
+    update();
+    toggleRateEditor(true);
+  }
+
+  rateChip.addEventListener('click', () => toggleRateEditor());
+  rateReset.addEventListener('click', () => applyRate(fetchedRate));
+  rateInput.addEventListener('input', () => {
+    rateState = { kind: 'manual', date: null };
+    update();
+  });
+  rateInput.addEventListener('focusout', () => {
+    const rate = parseRate(rateInput.value);
+    if (rate !== null) rateInput.value = money(rate);
+  });
+  rateInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); rateInput.blur(); }
+  });
+
+  addButton.addEventListener('click', () => addItem());
+  document.getElementById('mobile-jump').addEventListener('click', () => {
+    document.getElementById('summary-card').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  });
+
+  addItem(false);
+  loadRate();
+})();
+</script>
